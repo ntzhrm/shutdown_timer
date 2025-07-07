@@ -43,6 +43,9 @@ class ShutdownTimer:
         # 绑定关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         
+        # 检查并恢复定时状态
+        self.restore_timer_state()
+        
     def create_gui(self):
         # 主框架
         main_frame = ttk.Frame(self.root, padding="10")
@@ -90,7 +93,7 @@ class ShutdownTimer:
         
         # 其他选项
         options_frame = ttk.Frame(main_frame)
-        options_frame.grid(row=4, column=0, columnspan=2, pady=(20, 0))
+        options_frame.grid(row=4, column=0, columnspan=2, pady=(10, 0))
         
         self.minimize_var = tk.BooleanVar(value=True)
         minimize_check = ttk.Checkbutton(options_frame, text="最小化到托盘", variable=self.minimize_var)
@@ -208,6 +211,21 @@ class ShutdownTimer:
         else:
             self.quit_app()
     
+    def restore_timer_state(self):
+        """恢复上次的定时状态"""
+        if self.is_running and self.shutdown_time:
+            # 启动计时器线程
+            self.timer_thread = threading.Thread(target=self.timer_worker, daemon=True)
+            self.timer_thread.start()
+            
+            # 更新界面
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)
+            self.status_label.config(text=f"定时关机已恢复，目标时间: {self.shutdown_time.strftime('%Y-%m-%d %H:%M')}")
+            
+            # 启动状态更新
+            self.update_status()
+    
     def setup_auto_start(self):
         try:
             key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, 
@@ -225,6 +243,16 @@ class ShutdownTimer:
                     config = json.load(f)
                     self.hour_var = tk.StringVar(value=str(config.get('hour', 22)))
                     self.minute_var = tk.StringVar(value=str(config.get('minute', 0)))
+                    
+                    # 加载保存的定时状态
+                    if config.get('is_running', False) and 'shutdown_time' in config:
+                        shutdown_time_str = config.get('shutdown_time')
+                        self.shutdown_time = datetime.fromisoformat(shutdown_time_str)
+                        
+                        # 检查定时时间是否仍然有效（在未来）
+                        if self.shutdown_time > datetime.now():
+                            self.is_running = True
+                            self.remaining_time = int((self.shutdown_time - datetime.now()).total_seconds())
         except Exception as e:
             print(f"加载配置失败: {e}")
     
@@ -235,6 +263,11 @@ class ShutdownTimer:
                 'minute': int(self.minute_var.get()),
                 'is_running': self.is_running
             }
+            
+            # 如果正在运行，保存关机时间
+            if self.is_running and self.shutdown_time:
+                config['shutdown_time'] = self.shutdown_time.isoformat()
+            
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config, f, ensure_ascii=False, indent=2)
         except Exception as e:
