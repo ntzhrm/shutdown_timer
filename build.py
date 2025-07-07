@@ -19,7 +19,6 @@ def build_executable():
         "--windowed",  # 不显示控制台窗口
         "--name=定时关机助手",  # 设置exe文件名
         "--icon=icon.ico",  # 图标文件(可选)
-        "--add-data=config.json;.",  # 添加配置文件
         "shutdown_timer.py"
     ]
     
