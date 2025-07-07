@@ -12,14 +12,11 @@ def build_executable():
         print("正在安装PyInstaller...")
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
     
-    # 构建命令
+    # 构建命令 - 使用spec文件
     build_cmd = [
         "pyinstaller",
-        "--onefile",  # 打包成单个exe文件
-        "--windowed",  # 不显示控制台窗口
-        "--name=定时关机助手",  # 设置exe文件名
-        "--icon=icon.ico",  # 图标文件(可选)
-        "shutdown_timer.py"
+        "--clean",  # 清理缓存
+        "shutdown_timer.spec"
     ]
     
     print("开始打包...")
